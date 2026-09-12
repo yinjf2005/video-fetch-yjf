@@ -1,0 +1,77 @@
+# video_fetch_yjf 运行配置（基于 config.example.yaml）
+# 所有密钥通过 ${ENV} 占位，从环境变量注入，禁止硬编码明文。
+# 本配置以 OPENAI_API_KEY 同时驱动「转写(ASR)」与「总结(LLM)」，
+# 即用户要求的 "OPENAI_API_KEY 或 本地 Whisper" 中的 OPENAI 路线。
+# 如需改用本地 Whisper，将 asr.primary 改为 "whisper" 并安装 openai-whisper。
+
+output_dir: "./output"
+
+# 知识库对接（可选，不配置则仅输出到本地）
+knowledge_base:
+  ima:
+    enabled: false
+    client_id: "${IMA_CLIENT_ID}"
+    api_key: "${IMA_API_KEY}"
+    target_kb: "default"
+  obsidian:
+    enabled: true
+    # 本机仓库路径（Obsidian 注册的唯一仓库，见 %APPDATA%\obsidian\obsidian.json）。
+    # 仍可用环境变量 OBSIDIAN_VAULT_PATH 覆盖（env 优先级高于此处）。
+    vault_path: "D:\\Obsidian"
+    # 默认落盘子目录；可用 sync_obsidian.py --sub 覆盖。
+    # 注意：该仓库的 AGENTS.md 要求「他人内容 → raw/<主题>/ 且文件名加 raw_ 前缀」，
+    # 走那条规范时用 --sub "raw/文史地哲" --name "raw_xxx.md"。
+    sub_folder: "视频笔记"
+
+# ASR 配置（primary 失败自动降级 fallback）
+# faster-whisper 路线（推荐）：本地离线 CT2 模型，**无需任何 API Key**，CPU 可跑。
+#                            支持 VAD 分段 + 逐段语言检测，适合中英混说场景。
+# openai 路线：用 OPENAI_API_KEY 调用 OpenAI Whisper API（无需本地模型）
+# whisper 路线：本地 openai-whisper（需自行安装模型权重，离线可用）
+asr:
+  primary: "faster-whisper"    # faster-whisper | openai | whisper | siliconflow | dashscope
+  openai_asr_model: "whisper-1"
+  whisper_model: "large-v3-turbo"
+  fallback: "openai"
+  faster_whisper:
+    model_dir: ""              # 留空则用 ~/.workbuddy/binaries/whisper/large-v3-turbo
+    device: "cpu"              # cpu | cuda
+    compute_type: "int8"       # int8（CPU 推荐）| float16 | float32
+    beam_size: 5
+    segment_lang_detect: true  # 中英混说务必开启，否则另一种语言会被幻觉式硬译
+  siliconflow_api_key: "${SILICONFLOW_API_KEY}"
+  dashscope_api_key: "${DASHSCOPE_API_KEY}"
+
+# LLM 配置（总结 / PREP / 分段）
+llm:
+  provider: "openai"           # openai | anthropic | gemini | custom
+  model: "gpt-4o"
+  temperature: 0.3
+  api_key: "${OPENAI_API_KEY}"
+  base_url: "${OPENAI_BASE_URL}"   # 留空则用官方 https://api.openai.com/v1；自定义端点（如本地网关）填此处
+
+# 下载配置
+download:
+  quality: "1080p"             # 1080p | 720p | 480p | best
+  # Cookie 通道：cookie_file 优先（cookies.txt，可绕过 App-Bound 加密）；
+  # cookie_browser="auto" 自动探测本机浏览器（本机为 Edge）。
+  cookie_file: ""              # 例："C:/Users/yinjf/Desktop/cookies_xhs.txt"
+  cookie_browser: "auto"
+  proxy: ""
+  timeout: 30
+  wechat_server: "http://127.0.0.1:8080"      # wx_channels_download 本地服务
+  xiaohongshu_endpoint: ""      # 可选/遗留：小红书解析接口（social-media-copilot 等）。默认空；仅当 yt-dlp 失败时才尝试。小红书现由 yt-dlp 直接下载（借用 cookie_browser）。
+
+# 允许下载的域名白名单（防 SSRF / 钓鱼）
+whitelist_domains:
+  - "weixin.qq.com"
+  - "channels.weixin.qq.com"
+  - "xiaohongshu.com"
+  - "xhslink.com"
+  - "bilibili.com"
+  - "b23.tv"
+  - "douyin.com"
+  - "v.douyin.com"
+  - "youtube.com"
+  - "youtu.be"
+  - "kuaishou.com"

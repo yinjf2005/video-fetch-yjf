@@ -1,0 +1,70 @@
+# video_fetch_yjf 配置示例
+# 复制为 config.yaml 并填写；所有密钥通过 ${ENV} 占位，从环境变量注入，禁止硬编码。
+
+output_dir: "./output"
+
+# 知识库对接（可选，不配置则仅输出到本地）
+knowledge_base:
+  ima:
+    enabled: false
+    client_id: "${IMA_CLIENT_ID}"
+    api_key: "${IMA_API_KEY}"
+    target_kb: "default"
+  obsidian:
+    enabled: false
+    vault_path: "${OBSIDIAN_VAULT_PATH}"
+    sub_folder: "视频笔记"
+
+# ASR 配置（primary 失败自动降级 fallback）
+# faster-whisper 路线（推荐）：本地离线，**无需 API Key**，CPU 可跑；
+#   模型可从 hf-mirror.com 等镜像获取（HuggingFace 主站部分地区不可达）。
+asr:
+  primary: "faster-whisper"     # faster-whisper | openai | whisper | siliconflow | dashscope
+  whisper_model: "large-v3-turbo"
+  openai_asr_model: "whisper-1"
+  fallback: "openai"
+  faster_whisper:
+    model_dir: ""               # 留空则用 ~/.workbuddy/binaries/whisper/large-v3-turbo
+    device: "cpu"
+    compute_type: "int8"        # int8（CPU 推荐）| float16 | float32
+    beam_size: 5
+    segment_lang_detect: true   # 中英混说务必开启
+  siliconflow_api_key: "${SILICONFLOW_API_KEY}"
+  dashscope_api_key: "${DASHSCOPE_API_KEY}"
+
+# LLM 配置
+llm:
+  provider: "openai"           # openai | anthropic | gemini | custom
+  model: "gpt-4o"
+  temperature: 0.3
+  api_key: "${OPENAI_API_KEY}"
+  base_url: ""
+
+# 下载配置
+download:
+  quality: "1080p"             # 1080p | 720p | 480p | best
+  # Cookie 通道（按优先级）：
+  #   1) cookie_file  : 指向 Netscape 格式 cookies.txt —— 最稳，可绕过 Chrome/Edge 127+
+  #                     的 App-Bound Encryption（v20），yt-dlp 无法解密该方案。
+  #   2) cookie_browser: "auto" 自动探测本机浏览器（Edge/Chrome/Brave/...）；
+  #                     也可显式写 "edge" / "chrome"。注意浏览器运行时 Cookie 库被独占锁定。
+  cookie_file: ""              # 例："C:/Users/you/cookies_xhs.txt"
+  cookie_browser: "auto"
+  proxy: ""
+  timeout: 30
+  wechat_server: "http://127.0.0.1:8080"      # wx_channels_download 本地服务
+  xiaohongshu_endpoint: ""      # 可选/遗留：小红书解析接口（social-media-copilot 等）。默认空；仅当 yt-dlp 失败时才尝试。小红书现由 yt-dlp 直接下载（借用 cookie_browser）。
+
+# 允许下载的域名白名单（防 SSRF / 钓鱼）
+whitelist_domains:
+  - "weixin.qq.com"
+  - "channels.weixin.qq.com"
+  - "xiaohongshu.com"
+  - "xhslink.com"
+  - "bilibili.com"
+  - "b23.tv"
+  - "douyin.com"
+  - "v.douyin.com"
+  - "youtube.com"
+  - "youtu.be"
+  - "kuaishou.com"
